@@ -1,0 +1,19 @@
+name: Deploy ShipSense on a server
+
+
+on:
+  push:
+    branches:
+      -main
+
+
+jobs:
+  deploy:
+    runs-on: ubuntu:latest
+    steps:
+        uses:
+        with:
+          host:
+          username:
+          key:
+          script:
