@@ -38,6 +38,9 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: shipsense
+      RABBITMQ_DEFAULT_PASS: shipsense
     ports:
       - "5672:5672"
       - "15672:15672"
