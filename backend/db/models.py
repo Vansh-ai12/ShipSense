@@ -23,10 +23,10 @@ class CarrierType(str, Enum):
     IN_HOUSE = "in_house"
     OUTSOURCED = "outsourced"
 
-class Role(str,Enum):
-    USER:"user"
+class Role(str, Enum):
+    USER = "user"
     ADMIN = "admin"
-
+    DELIVERY_AGENT = "delivery_agent"
 
 
 def utc_now() -> datetime:
