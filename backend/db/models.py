@@ -53,6 +53,9 @@ class User(SQLModel, table = True):
             ),
         )
     orders: list["Order"] = Relationship(back_populates="user")
+    refresh_tokens: list["RefreshToken"] = Relationship(
+        back_populates="user"
+    )
     created_at: datetime = ts_field()
     
 
@@ -114,3 +117,21 @@ class Ship(SQLModel, table=True):
     order_id: UUID = Field(foreign_key="order.id", unique=True)
     order: Order = Relationship(back_populates="ship")
     created_at: datetime = ts_field()
+
+
+class RefreshToken(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+
+    user_id: UUID = Field(foreign_key="user.id")
+
+    token_hash: str
+
+    expires_at: datetime
+
+    revoked: bool = False
+
+    created_at: datetime = ts_field()
+
+    user: "User" = Relationship(
+        back_populates="refresh_tokens"
+    )
