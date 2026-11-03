@@ -29,6 +29,12 @@ class Role(str, Enum):
     DELIVERY_AGENT = "delivery_agent"
 
 
+class AgentStatus(str, Enum):
+    AVAILABLE = "AVAILABLE"
+    ASSIGNED = "ASSIGNED"
+    ON_DELIVERY = "ON_DELIVERY"
+    OFFLINE = "OFFLINE"
+
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -64,6 +70,9 @@ class Order(SQLModel, table = True):
     id:UUID = Field(default_factory = uuid4 , primary_key=True)
     user_id: UUID = Field(foreign_key="user.id")
     order_name:str
+    price: float
+    quantity: int
+    has_cancelled:bool = Field(default=False)
     delivery_status: DeliveryStatus = Field(
     default=DeliveryStatus.ORDER_RECEIVED,
         sa_column=Column(
@@ -109,6 +118,9 @@ class DeliveryAgent(SQLModel, table = True):
     )
     name:str
     phone:str
+    availability: Optional["AgentAvailability"] = Relationship(
+        back_populates="agent",
+    )
     created_at: datetime = ts_field()
 
 
@@ -135,3 +147,28 @@ class RefreshToken(SQLModel, table=True):
     user: "User" = Relationship(
         back_populates="refresh_tokens"
     )
+
+
+class AgentAvailability(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+
+    agent_id: UUID = Field(
+        foreign_key="agent.id",
+        unique=True
+    )
+
+    status: AgentStatus = Field(
+        default=AgentStatus.OFFLINE
+    )
+
+    current_order_id: UUID | None = Field(
+        default=None,
+        foreign_key="order.id"
+    )
+
+    agent: DeliveryAgent = Relationship(
+        back_populates="availability"
+    )
+
+    last_seen_at: datetime | None = None
+    updated_at: datetime = ts_field()

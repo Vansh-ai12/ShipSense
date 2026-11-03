@@ -48,7 +48,7 @@ def create_access_token(user_id: str, role: str) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
+def get_current_user(token: str = Depends(oauth2_scheme) , session:Session = Depends(get_session)) -> dict:
     try:
         payload = jwt.decode(
             token, SECRET_KEY, algorithms=[ALGORITHM],

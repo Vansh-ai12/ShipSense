@@ -1,3 +1,4 @@
+
 services:
 
   api:
@@ -9,7 +10,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      rabbitmq:
+      kafka:
         condition: service_healthy
 
   postgres:
@@ -36,16 +37,45 @@ services:
       timeout: 3s
       retries: 5
 
-  rabbitmq:
-    image: rabbitmq:3-management
-    environment:
-      RABBITMQ_DEFAULT_USER: shipsense
-      RABBITMQ_DEFAULT_PASS: shipsense
+  kafka:
+    image: apache/kafka:latest
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "9094:9094"
+
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      test:
+        - CMD-SHELL
+        - /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  kafka_data:
+    name: shipsense_kafka_data

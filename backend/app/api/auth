@@ -59,11 +59,24 @@ def register(data: UserCreate, session: Session = Depends(get_session)):
     return user
 
 @router.post("/logout")
-def logout(user: dict = Depends(get_current_user)):
-    return {
-        "message": f"Logout endpoint for user {user['id']} is not implemented yet."
-    }
+def logout(
+    data: RefreshRequest,
+    session: Session = Depends(get_session)
+):
+    token_hash = hash_refresh_token(data.refresh_token)
 
+    token_details = session.exec(
+        select(RefreshToken).where(
+            RefreshToken.token_hash == token_hash
+        )
+    ).first()
+
+    if token_details:
+        token_details.revoked = True
+        session.add(token_details)
+        session.commit()
+
+    return {"message": "Logged out successfully"}
 
 @router.post("/refresh")
 def refresh(data: RefreshRequest, session: Session = Depends(get_session)):
