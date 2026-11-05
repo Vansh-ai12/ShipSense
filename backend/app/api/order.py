@@ -10,5 +10,4 @@ router = APIRouter()
 
 @router.post("/create")
 def order_creation(order: OrderCreate, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-
     return create_order(order, session, user)

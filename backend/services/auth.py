@@ -6,14 +6,17 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerifyMismatchError
-from db.models import RefreshToken
+from db.models import RefreshToken,  User
 from db.engine import get_session
+from dotenv import load_dotenv
+
 
 import hashlib
 
 from sqlmodel import Session
 
-SECRET_KEY = os.environ["JWT_SECRET"]       
+load_dotenv()   
+SECRET_KEY = os.getenv("JWT_SECRET")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_MINUTES = 15
 REFRESH_TOKEN_DAYS = 7
@@ -48,7 +51,7 @@ def create_access_token(user_id: str, role: str) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme) , session:Session = Depends(get_session)) -> dict:
+def get_current_user(token: str = Depends(oauth2_scheme) , session:Session = Depends(get_session)) -> User:
     try:
         payload = jwt.decode(
             token, SECRET_KEY, algorithms=[ALGORITHM],
@@ -60,12 +63,18 @@ def get_current_user(token: str = Depends(oauth2_scheme) , session:Session = Dep
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return {"id": payload["sub"], "role": payload.get("role")}
+    user= session.get(User, payload["sub"])
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    return user
 
 
 def require_roles(*allowed: str):
-    def checker(user: dict = Depends(get_current_user)) -> dict:
-        if user["role"] not in allowed:
+    def checker(user: User = Depends(get_current_user)) -> User:
+        if user.role not in allowed:
             raise HTTPException(status_code=403, detail="Not enough permissions")
         return user
     return checker

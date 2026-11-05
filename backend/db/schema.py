@@ -1,6 +1,10 @@
-from pydantic import BaseModel 
+from pydantic import BaseModel
 
-from typing import Optional
+from uuid import UUID
+
+from datetime import datetime
+
+from typing import Optional ,Annotated , Literal
 
 
 class UserCreate(BaseModel):
@@ -40,3 +44,28 @@ class OrderCreate(BaseModel):
     has_paid: bool
 
 
+
+
+
+
+
+class PickupLocation(BaseModel):
+    longitude: float
+    latitude: float
+
+
+class OrderCreatedEvent(BaseModel):
+    event_type: Literal["OrderCreated"]
+
+    order_id: UUID
+
+    product_id: UUID
+    created_at: datetime
+
+    pickup_location: PickupLocation
+
+
+class AgentAssignedEvent(BaseModel):
+    event_type: Literal["AgentAssigned"]
+    order_id: UUID
+    agent_id: str
