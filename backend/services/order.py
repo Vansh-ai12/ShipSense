@@ -21,7 +21,6 @@ producer = KafkaProducer(
 
 def create_order(order:OrderCreate , session: Session = Depends(get_session) , user: User = Depends(get_current_user)):
     
-
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -36,6 +35,7 @@ def create_order(order:OrderCreate , session: Session = Depends(get_session) , u
         price=order.price,
         quantity=order.quantity,
         user=userOld,
+        product_id=order.product_id
     )
     try:
         session.add(new_order)
@@ -155,7 +155,12 @@ def reserve_agent(
         session.rollback()
         raise
 
-def process_order_event(event:OrderCreatedEvent):
+
+
+
+
+
+def process_order_event(event:OrderCreatedEvent , session:Session):
     order_id = event.order_id
 
     longitude = event.pickup_location.longitude
@@ -169,8 +174,16 @@ def process_order_event(event:OrderCreatedEvent):
     )
 
     if not candidates:
-        print(f"No nearby agents for order {order_id}")
-        return
+        order = session.get(Order,order_id)
+        order.delivery_status = "pickup_pending"
+        fail_obj = {
+            "event_type":"No_Nearby_agents",
+            "order_id":order_id ,
+            
+        }
+        producer.send("order_pending",value=fail_obj)
+        raise HTTPException(status_code=409 , detail="Agents not available")
+
 
     
     for candidate in candidates:
@@ -221,3 +234,6 @@ def run_order_event():
 
         except Exception as e:
             print(f"Failed to process event: {e}")
+
+
+

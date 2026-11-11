@@ -69,3 +69,17 @@ class AgentAssignedEvent(BaseModel):
     event_type: Literal["AgentAssigned"]
     order_id: UUID
     agent_id: str
+
+
+class PickUpDetails(BaseModel):
+    agent_id:UUID
+    is_pick:bool
+    order_id:UUID
+
+
+class PickupResponse(BaseModel):
+    success: bool
+    message: str
+    order_id: UUID
+    status: str
+    reassignment_initiated: bool = False

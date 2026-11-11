@@ -17,7 +17,18 @@ class DeliveryStatus(str, Enum):
     RETURNED = "returned"
     CANCELLED = "cancelled" 
     PICKUP_FAILED = "pickup_failed"
+    PICKUP_PENDING = "pickup_pending"
+    AGENT_ASSIGNED = "agent_assigned"
 
+class PaymentMethod(str, Enum):
+    PREPAID = "prepaid"
+    COD = "cod"          # cash on delivery
+
+class PaymentStatus(str, Enum):
+    PENDING = "pending"
+    PAID = "paid"
+    FAILED = "failed"
+    REFUNDED = "refunded"
 
 class CarrierType(str, Enum):
     IN_HOUSE = "in_house"
@@ -34,6 +45,8 @@ class AgentStatus(str, Enum):
     ASSIGNED = "ASSIGNED"
     ON_DELIVERY = "ON_DELIVERY"
     OFFLINE = "OFFLINE"
+    BUSY = "BUSY"
+
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -72,6 +85,8 @@ class Order(SQLModel, table = True):
     order_name:str
     price: float
     quantity: int
+    
+    product_id: UUID = Field(foreign_key="product.id")
     has_cancelled:bool = Field(default=False)
     delivery_status: DeliveryStatus = Field(
     default=DeliveryStatus.ORDER_RECEIVED,
@@ -86,6 +101,35 @@ class Order(SQLModel, table = True):
             index=True,
         ),
     )
+    payment_method: PaymentMethod = Field(
+        default=PaymentMethod.PREPAID,
+        sa_column=Column(
+            SAEnum(
+                PaymentMethod,
+                native_enum=False,
+                length=20,
+                values_callable=lambda e: [m.value for m in e],
+            ),
+            nullable=False,
+            server_default="prepaid",
+        ),
+    )
+    payment_status: PaymentStatus = Field(
+        default=PaymentStatus.PENDING,
+        sa_column=Column(
+            SAEnum(
+                PaymentStatus,
+                native_enum=False,
+                length=20,
+                values_callable=lambda e: [m.value for m in e],
+            ),
+            nullable=False,
+            server_default="pending",
+            index=True,
+        ),
+    )
+    pickup_code:str
+    code_attempts:int = 3
     user: User = Relationship(back_populates="orders")
     tracks: list["Track"] = Relationship(back_populates="order")
     ship: Optional["Ship"] = Relationship(
@@ -94,11 +138,20 @@ class Order(SQLModel, table = True):
     created_at: datetime = ts_field()
 
 
-class Track(SQLModel,table = True):
-    id:UUID = Field(default_factory = uuid4 , primary_key=True)
-    order_id:UUID = Field(foreign_key="order.id")
-    order: Order = Relationship(back_populates = "tracks")
-    location:str
+class Track(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    order_id: UUID = Field(foreign_key="order.id", index=True)
+    order: Order = Relationship(back_populates="tracks")
+    status: DeliveryStatus = Field(
+        sa_column=Column(
+            SAEnum(DeliveryStatus, native_enum=False, length=30,
+                   values_callable=lambda e: [m.value for m in e]),
+            nullable=False,
+        )
+    )
+    location: Optional[str] = None
+    note: Optional[str] = None
+    agent_id: Optional[UUID] = Field(default=None, foreign_key="deliveryagent.id")
     created_at: datetime = ts_field()
 
 
@@ -138,7 +191,7 @@ class RefreshToken(SQLModel, table=True):
 
     token_hash: str
 
-    expires_at: datetime
+    expires_at: datetime = Field(sa_type=DateTime(timezone=True))
 
     revoked: bool = False
 
@@ -153,7 +206,7 @@ class AgentAvailability(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
 
     agent_id: UUID = Field(
-        foreign_key="agent.id",
+        foreign_key="deliveryagent.id",
         unique=True
     )
 
@@ -170,5 +223,14 @@ class AgentAvailability(SQLModel, table=True):
         back_populates="availability"
     )
 
-    last_seen_at: datetime | None = None
+    last_seen_at: datetime = Field(sa_type=DateTime(timezone=True))
     updated_at: datetime = ts_field()
+
+
+class Product(SQLModel, table = True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    title:str
+    price:float
+    stock_quantity:int
+    description: Optional[str] = None
+    created_at: datetime = ts_field()
