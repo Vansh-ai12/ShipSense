@@ -115,7 +115,8 @@ def report_pickup_failed(session: Session, order_id: UUID, agent_id: UUID, reaso
 
     assigned.status = AgentStatus.AVAILABLE                
     assigned.current_order_id = None
-    session.add(Track(order_id=order_id, location=f"pickup failed: {reason}"))
+    session.add(Track(order_id=order_id, status=DeliveryStatus.PICKUP_FAILED,
+                      note=reason, agent_id=agent_id))
     session.commit()
     publish_event("shipment-events", key=str(order_id), value={
         "event_type": "PickupFailed", "order_id": str(order_id),

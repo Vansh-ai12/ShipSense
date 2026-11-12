@@ -131,16 +131,23 @@ class Order(SQLModel, table = True):
     pickup_code:str
     code_attempts:int = 3
     user: User = Relationship(back_populates="orders")
-    tracks: list["Track"] = Relationship(back_populates="order")
-    ship: Optional["Ship"] = Relationship(
-        back_populates="order", sa_relationship_kwargs={"uselist": False}
+    shipment: Optional["Shipment"] = Relationship(
+        back_populates="order",
+        sa_relationship_kwargs={"uselist": False}
     )
     created_at: datetime = ts_field()
 
 
 class Track(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    order_id: UUID = Field(foreign_key="order.id", index=True)
+    shipment_id: UUID = Field(
+        foreign_key="shipment.id",
+        index=True
+    )
+
+    shipment: "Shipment" = Relationship(
+        back_populates="tracks"
+    )
     order: Order = Relationship(back_populates="tracks")
     status: DeliveryStatus = Field(
         sa_column=Column(
@@ -177,12 +184,48 @@ class DeliveryAgent(SQLModel, table = True):
     created_at: datetime = ts_field()
 
 
-class Ship(SQLModel, table=True):
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
-    order_id: UUID = Field(foreign_key="order.id", unique=True)
-    order: Order = Relationship(back_populates="ship")
-    created_at: datetime = ts_field()
+class Shipment(SQLModel, table=True):
 
+    id: UUID = Field(
+        default_factory=uuid4,
+        primary_key=True
+    )
+
+    order_id: UUID = Field(
+        foreign_key="order.id",
+        unique=True,
+        index=True
+    )
+
+    pickup_address: str
+    delivery_address: str
+
+    status: DeliveryStatus = Field(
+        default=DeliveryStatus.ORDER_RECEIVED,
+        sa_column=Column(
+            SAEnum(
+                DeliveryStatus,
+                native_enum=False,
+                length=30,
+                values_callable=lambda e: [m.value for m in e]
+            ),
+            nullable=False,
+            index=True
+        )
+    )
+
+    estimated_delivery: Optional[datetime] = None
+
+    order: "Order" = Relationship(
+        back_populates="shipment"
+    )
+
+    tracks: list["Track"] = Relationship(
+        back_populates="shipment"
+    )
+
+    created_at: datetime = ts_field()
+    updated_at: datetime = ts_field()
 
 class RefreshToken(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -227,10 +270,3 @@ class AgentAvailability(SQLModel, table=True):
     updated_at: datetime = ts_field()
 
 
-class Product(SQLModel, table = True):
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
-    title:str
-    price:float
-    stock_quantity:int
-    description: Optional[str] = None
-    created_at: datetime = ts_field()

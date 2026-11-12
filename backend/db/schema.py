@@ -36,12 +36,9 @@ class RefreshRequest(BaseModel):
 
 
 class OrderCreate(BaseModel):
-    user_id: str
     product_id: str
     quantity: int
-    price: float
     address: str
-    has_paid: bool
 
 
 
