@@ -36,15 +36,7 @@ class UserResponse(BaseModel):
         orm_mode = True
 
 
-class RefreshRequest(BaseModel):
-    refresh_token: str
 
-
-
-class OrderCreate(BaseModel):
-    product_id: str
-    quantity: int
-    address: str
 
 
 
@@ -52,6 +44,8 @@ class ShipmentEventIn(BaseModel):
     client_id:UUID
     order_id:UUID
     delivery_address: Location
+    order_price:float
+    order_quantity:int
     api_key:str
 
 

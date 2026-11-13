@@ -4,7 +4,7 @@ from enum import Enum
 from sqlalchemy import Column, Enum as SAEnum , DateTime
 from datetime import datetime,timezone
 from typing import Optional
-
+from db.schema import Location
 class DeliveryStatus(str, Enum):
     ORDER_RECEIVED = "order_received"
     BOOKED = "booked"
@@ -105,9 +105,6 @@ class Order(SQLModel, table = True):
     foreign_key="client.id",
     index=True
 )
-
-    
-
     has_cancelled:bool = Field(default=False)
     delivery_status: DeliveryStatus = Field(
     default=DeliveryStatus.ORDER_RECEIVED,
