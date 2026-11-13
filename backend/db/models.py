@@ -20,24 +20,14 @@ class DeliveryStatus(str, Enum):
     PICKUP_PENDING = "pickup_pending"
     AGENT_ASSIGNED = "agent_assigned"
 
-class PaymentMethod(str, Enum):
-    PREPAID = "prepaid"
-    COD = "cod"          # cash on delivery
-
-class PaymentStatus(str, Enum):
-    PENDING = "pending"
-    PAID = "paid"
-    FAILED = "failed"
-    REFUNDED = "refunded"
 
 class CarrierType(str, Enum):
     IN_HOUSE = "in_house"
     OUTSOURCED = "outsourced"
 
 class Role(str, Enum):
-    USER = "user"
     ADMIN = "admin"
-    DELIVERY_AGENT = "delivery_agent"
+
 
 
 class AgentStatus(str, Enum):
@@ -54,13 +44,43 @@ def utc_now() -> datetime:
 def ts_field():
     return Field(default_factory=utc_now, sa_type=DateTime(timezone=True))
 
+
+
+class Client(SQLModel, table=True):
+    id: UUID = Field(
+        default_factory=uuid4,
+        primary_key=True
+    )
+
+    client_name: str = Field(
+        unique=True,
+        index=True
+    )
+
+    api_key_hash: str = Field(unique=True, index=True)
+
+    api_key_prefix: str
+
+    is_active: bool = Field(default=True)
+
+
+    orders: list["Order"] = Relationship(
+        back_populates="client"
+    )
+
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_type=DateTime(timezone=True)
+    )
+
+
 class User(SQLModel, table = True):
     id:UUID  = Field(default_factory = uuid4 , primary_key =  True)
     name:str
     email:str = Field(unique=True)
     password:str
     role: Role = Field(
-            default=Role.USER,
+            default=Role.ADMIN,
             sa_column=Column(
                 SAEnum(
                     Role,
@@ -71,22 +91,23 @@ class User(SQLModel, table = True):
                 nullable=False,
             ),
         )
-    orders: list["Order"] = Relationship(back_populates="user")
-    refresh_tokens: list["RefreshToken"] = Relationship(
-        back_populates="user"
-    )
+
     created_at: datetime = ts_field()
     
 
 
 class Order(SQLModel, table = True):
     id:UUID = Field(default_factory = uuid4 , primary_key=True)
-    user_id: UUID = Field(foreign_key="user.id")
     order_name:str
     price: float
     quantity: int
+    client_id: UUID = Field(
+    foreign_key="client.id",
+    index=True
+)
+
     
-    product_id: UUID = Field(foreign_key="product.id")
+
     has_cancelled:bool = Field(default=False)
     delivery_status: DeliveryStatus = Field(
     default=DeliveryStatus.ORDER_RECEIVED,
@@ -101,36 +122,9 @@ class Order(SQLModel, table = True):
             index=True,
         ),
     )
-    payment_method: PaymentMethod = Field(
-        default=PaymentMethod.PREPAID,
-        sa_column=Column(
-            SAEnum(
-                PaymentMethod,
-                native_enum=False,
-                length=20,
-                values_callable=lambda e: [m.value for m in e],
-            ),
-            nullable=False,
-            server_default="prepaid",
-        ),
-    )
-    payment_status: PaymentStatus = Field(
-        default=PaymentStatus.PENDING,
-        sa_column=Column(
-            SAEnum(
-                PaymentStatus,
-                native_enum=False,
-                length=20,
-                values_callable=lambda e: [m.value for m in e],
-            ),
-            nullable=False,
-            server_default="pending",
-            index=True,
-        ),
-    )
-    pickup_code:str
-    code_attempts:int = 3
-    user: User = Relationship(back_populates="orders")
+    client: "Client" = Relationship(
+            back_populates="orders"
+        )
     shipment: Optional["Shipment"] = Relationship(
         back_populates="order",
         sa_relationship_kwargs={"uselist": False}
@@ -148,7 +142,6 @@ class Track(SQLModel, table=True):
     shipment: "Shipment" = Relationship(
         back_populates="tracks"
     )
-    order: Order = Relationship(back_populates="tracks")
     status: DeliveryStatus = Field(
         sa_column=Column(
             SAEnum(DeliveryStatus, native_enum=False, length=30,
@@ -197,6 +190,7 @@ class Shipment(SQLModel, table=True):
         index=True
     )
 
+    
     pickup_address: str
     delivery_address: str
 
@@ -227,23 +221,6 @@ class Shipment(SQLModel, table=True):
     created_at: datetime = ts_field()
     updated_at: datetime = ts_field()
 
-class RefreshToken(SQLModel, table=True):
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
-
-    user_id: UUID = Field(foreign_key="user.id")
-
-    token_hash: str
-
-    expires_at: datetime = Field(sa_type=DateTime(timezone=True))
-
-    revoked: bool = False
-
-    created_at: datetime = ts_field()
-
-    user: "User" = Relationship(
-        back_populates="refresh_tokens"
-    )
-
 
 class AgentAvailability(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -257,9 +234,9 @@ class AgentAvailability(SQLModel, table=True):
         default=AgentStatus.OFFLINE
     )
 
-    current_order_id: UUID | None = Field(
+    current_shipment_id: UUID | None = Field(
         default=None,
-        foreign_key="order.id"
+        foreign_key="shipment.id"
     )
 
     agent: DeliveryAgent = Relationship(

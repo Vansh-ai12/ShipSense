@@ -6,6 +6,12 @@ from datetime import datetime
 
 from typing import Optional ,Annotated , Literal
 
+from db.models import DeliveryStatus
+
+class Location(BaseModel):
+    longitude: float
+    latitude: float
+
 
 class UserCreate(BaseModel):
     name: str
@@ -42,13 +48,22 @@ class OrderCreate(BaseModel):
 
 
 
+class ShipmentEventIn(BaseModel):
+    client_id:UUID
+    order_id:UUID
+    delivery_address: Location
+    api_key:str
 
 
 
+class ShipmentEventOut(BaseModel):
+    order_id:UUID
+    shipment_id:UUID
+    pickup_address:Location
+    delivery_address:Location
+    estimated_delivery: datetime
 
-class PickupLocation(BaseModel):
-    longitude: float
-    latitude: float
+
 
 
 class OrderCreatedEvent(BaseModel):
@@ -59,7 +74,7 @@ class OrderCreatedEvent(BaseModel):
     product_id: UUID
     created_at: datetime
 
-    pickup_location: PickupLocation
+    pickup_location: Location
 
 
 class AgentAssignedEvent(BaseModel):

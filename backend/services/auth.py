@@ -9,7 +9,7 @@ from argon2.exceptions import InvalidHashError, VerifyMismatchError
 from db.models import RefreshToken,  User
 from db.engine import get_session
 from dotenv import load_dotenv
-
+from db.models import Role
 
 import hashlib
 
@@ -18,7 +18,7 @@ from sqlmodel import Session
 load_dotenv()   
 SECRET_KEY = os.getenv("JWT_SECRET")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_MINUTES = 15
+ACCESS_TOKEN_MINUTES = 1440 
 REFRESH_TOKEN_DAYS = 7
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -40,15 +40,6 @@ def verify_password(plain: str, hashed: str) -> bool:
         return False
 
 
-def create_access_token(user_id: str, role: str) -> str:
-    now = datetime.now(timezone.utc)
-    payload = {
-        "sub": str(user_id),
-        "role": role,                        
-        "iat": now,
-        "exp": now + timedelta(minutes=ACCESS_TOKEN_MINUTES),
-    }
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def get_current_user(token: str = Depends(oauth2_scheme) , session:Session = Depends(get_session)) -> User:
@@ -72,11 +63,25 @@ def get_current_user(token: str = Depends(oauth2_scheme) , session:Session = Dep
     return user
 
 
-def require_roles(*allowed: str):
-    def checker(user: User = Depends(get_current_user)) -> User:
+def require_roles(*allowed: Role):
+    def checker(
+        user: User = Depends(get_current_user)
+    ) -> User:
+
         if user.role not in allowed:
-            raise HTTPException(status_code=403, detail="Not enough permissions")
+            raise HTTPException(
+                status_code=403,
+                detail="Not enough permissions"
+            )
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=403,
+                detail="Account is disabled"
+            )
+
         return user
+
     return checker
 
 

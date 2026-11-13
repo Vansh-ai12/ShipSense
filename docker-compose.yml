@@ -36,7 +36,12 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-
+  adminer:
+    image: adminer
+    container_name: shipsense-adminer
+    restart: always
+    ports:
+      - "8080:8080"
   kafka:
     image: apache/kafka:latest
     ports:

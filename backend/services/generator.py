@@ -12,3 +12,7 @@ def hash_code(code: str, order_id: str) -> str:
 
 def verify_code(code: str, order_id: str, stored_hash: str) -> bool:
     return hmac.compare_digest(hash_code(code, order_id), stored_hash)
+
+
+def generate_api_key():
+    return
