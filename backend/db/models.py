@@ -5,6 +5,10 @@ from sqlalchemy import Column, Enum as SAEnum , DateTime
 from datetime import datetime,timezone
 from typing import Optional
 from db.schema import Location
+
+from sqlalchemy import Index, UniqueConstraint, text
+from sqlalchemy.dialects.postgresql import JSONB
+
 class DeliveryStatus(str, Enum):
     ORDER_RECEIVED = "order_received"
     BOOKED = "booked"
@@ -126,6 +130,26 @@ class Order(SQLModel, table = True):
         back_populates="order",
         sa_relationship_kwargs={"uselist": False}
     )
+    created_at: datetime = ts_field()
+
+    __table_args__ = (
+        UniqueConstraint("client_id", "external_order_id", name="uq_order_client_external"),
+    )
+
+
+class OutboxEvent(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_outbox_pending", "next_attempt_at", postgresql_where=text("published_at IS NULL")),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    topic: str
+    key: str
+    payload: dict = Field(sa_column=Column(JSONB, nullable=False))
+    attempts: int = Field(default=0)
+    last_error: Optional[str] = None
+    next_attempt_at: datetime = ts_field()
+    published_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
     created_at: datetime = ts_field()
 
 
