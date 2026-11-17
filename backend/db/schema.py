@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from uuid import UUID
 
@@ -58,7 +58,37 @@ class ShipmentEventOut(BaseModel):
     estimated_delivery: datetime
 
 
+class ShipmentOut(BaseModel):
+    id:UUID
+    order_id:UUID
+    pickup_address:str
+    delivery_address:str
+    status:DeliveryStatus
+    created_at:datetime
 
+
+class ClientOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    client_name: str
+    api_key_prefix: str        
+    is_active: bool
+    created_at: datetime
+   
+
+
+class OrderOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    client_id: UUID
+    order_name: str
+    price: float
+    quantity: int
+    delivery_status: DeliveryStatus
+    has_cancelled: bool
+    created_at: datetime
 
 class OrderCreatedEvent(BaseModel):
     event_type: Literal["OrderCreated"]

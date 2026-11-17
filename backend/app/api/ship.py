@@ -1,14 +1,16 @@
 import logging
-from uuid import uuid4
+from uuid import uuid4  , UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status , Query
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from db.engine import get_session
 from db.models import Client, Order, OutboxEvent, Shipment
 from db.schema import ShipmentEventIn
-from services.auth import get_current_client
+from services.auth import get_current_client , require_roles
+from db.schema import ShipmentOut , ClientOut, OrderOut
+from db.models import User , Role , DeliveryStatus
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -101,3 +103,84 @@ def register_event(
     session.refresh(shipment)
     response.status_code = status.HTTP_201_CREATED
     return _body(order, shipment, "Shipment registered successfully")
+
+
+@router.get("/shipments/{shipment_id}", response_model=ShipmentOut)
+def get_shipment(
+    shipment_id: UUID,
+    user: User = Depends(require_roles(Role.ADMIN)),
+    session: Session = Depends(get_session),
+):
+    shipment = session.get(Shipment, shipment_id)
+    if not shipment:
+        raise HTTPException(status_code=404, detail="Shipment not found")
+    return shipment
+
+@router.get("/client/{client_id}" , response_model=Client)
+def get_client(
+    client_id: UUID,
+    user: User = Depends(require_roles(Role.ADMIN)),
+    session: Session = Depends(get_session),
+):
+    client = session.get(Client,client_id)
+    if not client:
+        raise HTTPException(status_code=404 , detail = "Client not found")
+    
+    return client
+
+
+@router.get("/order/{order_id}" , response_model=OrderOut)
+def get_order(
+    order_id: UUID,
+    user: User = Depends(require_roles(Role.ADMIN)),
+    session: Session = Depends(get_session),
+):
+    order = session.get(Client,order_id)
+    if not order:
+        raise HTTPException(status_code=404 , detail = "Order not found")
+    
+    return order
+
+
+# all clients
+@router.get("/clients", response_model=list[ClientOut])
+def list_clients(
+    limit: int = Query(20, le=100),
+    offset: int = 0,
+    admin: User = Depends(require_roles(Role.ADMIN)),
+    session: Session = Depends(get_session),
+):
+    return session.exec(select(Client).offset(offset).limit(limit)).all()
+
+
+# all orders, optionally filtered (covers "orders of a client")
+@router.get("/orders", response_model=list[OrderOut])
+def list_orders(
+    client_id: UUID | None = None,
+    status: DeliveryStatus | None = None,
+    limit: int = Query(20, le=100),
+    offset: int = 0,
+    admin: User = Depends(require_roles(Role.ADMIN)),
+    session: Session = Depends(get_session),
+):
+    q = select(Order)
+    if client_id:
+        q = q.where(Order.client_id == client_id)
+    if status:
+        q = q.where(Order.delivery_status == status)
+    return session.exec(q.order_by(Order.created_at.desc()).offset(offset).limit(limit)).all()
+
+
+# all shipments of a client: join through Order
+@router.get("/shipments", response_model=list[ShipmentOut])
+def list_shipments(
+    client_id: UUID | None = None,
+    limit: int = Query(20, le=100),
+    offset: int = 0,
+    admin: User = Depends(require_roles(Role.ADMIN)),
+    session: Session = Depends(get_session),
+):
+    q = select(Shipment)
+    if client_id:
+        q = q.join(Order, Order.id == Shipment.order_id).where(Order.client_id == client_id)
+    return session.exec(q.order_by(Shipment.created_at.desc()).offset(offset).limit(limit)).all()
