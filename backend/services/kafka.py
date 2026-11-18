@@ -13,9 +13,9 @@ def _get_producer() -> KafkaProducer:
         bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP", "localhost:9094"),
         acks="all",
         retries=3,
-        max_in_flight_requests_per_connection=1,   # fix 1
+        max_in_flight_requests_per_connection=1,   
         key_serializer=lambda k: k.encode("utf-8"),
-        value_serializer=lambda v: json.dumps(v, default=str).encode("utf-8"),  # fix 2
+        value_serializer=lambda v: json.dumps(v, default=str).encode("utf-8"),  
     )
     return _producer
 

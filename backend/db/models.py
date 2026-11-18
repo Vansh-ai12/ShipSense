@@ -268,3 +268,7 @@ class AgentAvailability(SQLModel, table=True):
     updated_at: datetime = ts_field()
 
 
+class ProcessedEvent(SQLModel, table=True):
+    event_id: UUID = Field(primary_key=True)
+    consumer: str = Field(primary_key=True)
+    created_at: datetime = ts_field()
