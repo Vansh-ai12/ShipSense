@@ -11,7 +11,8 @@ from db.schema import ShipmentEventIn
 from services.auth import get_current_client , require_roles
 from db.schema import ShipmentOut , ClientOut, OrderOut
 from db.models import User , Role , DeliveryStatus
-
+from services.events import EventEnvelope, EventType
+from services.redis_client import redis_client as redis
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -40,7 +41,7 @@ def _body(order: Order, shipment: Shipment, message: str) -> dict:
     }
 
 
-@router.post("/event")
+@router.post("/register_event")
 def register_event(
     data: ShipmentEventIn,
     response: Response,
@@ -66,23 +67,29 @@ def register_event(
         shipment = Shipment(
             order_id=order.id,
             pickup_address=data.pickup_address.address,
+            pickup_lat=data.pickup_address.lat,
+            pickup_lng=data.pickup_address.lng,
             delivery_address=data.delivery_address.address,
+            delivery_lat=data.delivery_address.lat,
+            delivery_lng=data.delivery_address.lng,
+            recipient_name=data.recipient_name,
+            recipient_phone=data.recipient_phone,
         )
         session.add(shipment)
         session.flush()
 
         event_id = uuid4()
+
+        env = EventEnvelope(
+            event_id=event_id,
+            event_type=EventType.SHIPMENT_CREATED,
+            shipment_id=shipment.id,
+        )
         session.add(OutboxEvent(
             id=event_id,
             topic=SHIPMENT_TOPIC,
             key=str(shipment.id),
-            payload={
-                "event_id": str(event_id),
-                "event_type": "ShipmentCreated",
-                "order_id": str(order.id),
-                "shipment_id": str(shipment.id),
-                "client_id": str(client.id),
-            },
+            payload=env.model_dump(mode="json"),
         ))
         session.commit()          # order, shipment, and outbox row, all or nothing
 
@@ -135,7 +142,7 @@ def get_order(
     user: User = Depends(require_roles(Role.ADMIN)),
     session: Session = Depends(get_session),
 ):
-    order = session.get(Client,order_id)
+    order = session.get(Order,order_id)
     if not order:
         raise HTTPException(status_code=404 , detail = "Order not found")
     

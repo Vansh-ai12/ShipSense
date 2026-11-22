@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict , Field
 
 from uuid import UUID
 
@@ -9,9 +9,9 @@ from typing import Optional ,Annotated , Literal
 from db.models import DeliveryStatus
 
 class Location(BaseModel):
-    longitude: float
-    latitude: float
-
+    address: str
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
 
 class UserCreate(BaseModel):
     name: str
@@ -41,13 +41,13 @@ class UserResponse(BaseModel):
 
 
 class ShipmentEventIn(BaseModel):
-    client_id:UUID
-    order_id:UUID
+    external_order_id: str
+    pickup_address: Location
     delivery_address: Location
-    order_price:float
-    order_quantity:int
-    api_key:str
-
+    order_price: float
+    order_quantity: int
+    recipient_name: Optional[str] = None
+    recipient_phone: Optional[str] = None
 
 
 class ShipmentEventOut(BaseModel):
@@ -119,3 +119,8 @@ class PickupResponse(BaseModel):
     order_id: UUID
     status: str
     reassignment_initiated: bool = False
+
+
+class NearbyAgent(BaseModel):
+    agent_id: UUID
+    distance_km: float

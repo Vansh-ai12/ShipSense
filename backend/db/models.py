@@ -213,7 +213,16 @@ class Shipment(SQLModel, table=True):
 
     
     pickup_address: str
+
+    pickup_lat : float
+
+    pickup_lng : float
+
     delivery_address: str
+
+    delivery_lat : float
+
+    delivery_lng : float
 
     status: DeliveryStatus = Field(
         default=DeliveryStatus.ORDER_RECEIVED,
@@ -238,6 +247,9 @@ class Shipment(SQLModel, table=True):
     tracks: list["Track"] = Relationship(
         back_populates="shipment"
     )
+
+    recipient_name: Optional[str] = None
+    recipient_phone: Optional[str] = None
 
     created_at: datetime = ts_field()
     updated_at: datetime = ts_field()

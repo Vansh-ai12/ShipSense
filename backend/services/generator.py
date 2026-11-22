@@ -20,3 +20,4 @@ def hash_api_key(api_key: str) -> str:
 
 def generate_api_key():
     return
+
