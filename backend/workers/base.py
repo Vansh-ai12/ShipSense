@@ -61,7 +61,7 @@ def _process(group_id: str, topic: str, handlers: dict, msg) -> None:
                 )
                 if res.rowcount == 0:       # already processed by this consumer
                     return
-                handler(session, env)       # <- the dispatcher/notifier logic
+                handler(env,session)       # <- the dispatcher/notifier logic
                 session.commit()            # dedupe row and handler changes together
             return
         except Exception as exc:
