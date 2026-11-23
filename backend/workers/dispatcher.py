@@ -1,7 +1,7 @@
 import logging
-from sqlmodel import Session
+from sqlmodel import Session , select
 
-from db.models import Shipment, DeliveryStatus
+from db.models import Shipment, DeliveryStatus,AgentAvailability,AgentStatus
 from services.events import EventEnvelope, EventType
 from db.schema import NearbyAgent
 from uuid import UUID
@@ -12,10 +12,7 @@ from workers.base import run_consumer
 
 logger = logging.getLogger(__name__)
 
-redis_client = redis.Redis.from_url(
-    os.getenv("REDIS_URL", "redis://localhost:6379/0"),
-    decode_responses=True,  
-)
+
 
 
 def on_shipment_created(env: EventEnvelope, session: Session) -> None:
@@ -27,6 +24,14 @@ def on_shipment_created(env: EventEnvelope, session: Session) -> None:
     shipment.status = DeliveryStatus.PICKUP_PENDING
 
     agents = find_nearby_agents(shipment.pickup_lat , shipment.pickup_lng)
+    for agent in agents:
+        #Approval from agent_side
+        agent_id = agent.agent_id
+        agent_av = select(AgentAvailability).where(AgentAvailability.agent_id == agent_id)
+        if agent_av.status != AgentStatus.AVAILABLE:
+            continue
+
+
 
 
 
