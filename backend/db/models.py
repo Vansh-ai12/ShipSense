@@ -48,7 +48,34 @@ def utc_now() -> datetime:
 def ts_field():
     return Field(default_factory=utc_now, sa_type=DateTime(timezone=True))
 
+class AssignmentStatus(str, Enum):
+    OFFERED = "offered"
+    ACCEPTED = "accepted"
+    DECLINED = "declined"
+    TIMED_OUT = "timed_out"
+    RELEASED = "released"
+    COMPLETED = "completed"
 
+
+class ShipmentAssignment(SQLModel, table=True):
+    __table_args__ = (
+        Index("uq_one_open_offer", "shipment_id", unique=True,
+              postgresql_where=text("status IN ('offered','accepted')")),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    shipment_id: UUID = Field(foreign_key="shipment.id", index=True)
+    agent_id: UUID = Field(foreign_key="deliveryagent.id", index=True)
+    status: AssignmentStatus = Field(
+        default=AssignmentStatus.OFFERED,
+        sa_column=Column(
+            SAEnum(AssignmentStatus, native_enum=False, length=20,
+                   values_callable=lambda e: [m.value for m in e]),
+            nullable=False,
+        ),
+    )
+    offered_at: datetime = ts_field()
+    responded_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
 
 class Client(SQLModel, table=True):
     id: UUID = Field(
