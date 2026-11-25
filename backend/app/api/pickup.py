@@ -57,12 +57,13 @@ def decline_offer(shipment_id: UUID, agent_id: UUID, session: Session = Depends(
     # free the agent
     session.execute(
         update(AgentAvailability)
-        .where(AgentAvailability.agent_id == agent_id)
+        .where(AgentAvailability.agent_id == agent_id,
+               AgentAvailability.current_shipment_id == shipment_id)
         .values(status=AgentStatus.AVAILABLE, current_shipment_id=None, updated_at=utc_now())
     )
 
     # tells the dispatcher to find the next agent (it skips agents already tried)
-    add_outbox(session, shipment_id, EventType.PICKUP_FAILED,
-               {"reason_code": "AGENT_DECLINED", "cause": "AGENT", "agent_id": str(agent_id)})
+    add_outbox(session, shipment_id, EventType.OFFER_DECLINED,
+               {"reason_code": "AGENT_DECLINED", "agent_id": str(agent_id)})
     session.commit()
     return {"status": "declined"}

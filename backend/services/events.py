@@ -21,6 +21,8 @@ class EventType(str, Enum):
     DELIVERY_FAILED = "DeliveryFailed"
     SHIPMENT_ON_HOLD = "ShipmentOnHold"
     DELIVERED = "Delivered"
+    OFFER_DECLINED = "OfferDeclined"
+    OFFER_EXPIRED = "OfferExpired"
 
 
 class EventEnvelope(BaseModel):

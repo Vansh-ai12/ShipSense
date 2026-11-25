@@ -123,7 +123,7 @@ def get_shipment(
         raise HTTPException(status_code=404, detail="Shipment not found")
     return shipment
 
-@router.get("/client/{client_id}" , response_model=Client)
+@router.get("/clients/{client_id}" , response_model=ClientOut)
 def get_client(
     client_id: UUID,
     user: User = Depends(require_roles(Role.ADMIN)),
@@ -136,7 +136,7 @@ def get_client(
     return client
 
 
-@router.get("/order/{order_id}" , response_model=OrderOut)
+@router.get("/orders/{order_id}" , response_model=OrderOut)
 def get_order(
     order_id: UUID,
     user: User = Depends(require_roles(Role.ADMIN)),

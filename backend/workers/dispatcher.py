@@ -44,7 +44,9 @@ def on_shipment_created(env: EventEnvelope, session: Session) -> None:
     if res.rowcount == 0:
         return                                   # already handled or cancelled
 
-    shipment = session.get(Shipment, env.shipment_id)
+    offer_to_next_agent(session, session.get(Shipment, env.shipment_id))
+
+def offer_to_next_agent(session: Session, shipment: Shipment) -> None:
     tried = set(session.exec(
         select(ShipmentAssignment.agent_id)
         .where(ShipmentAssignment.shipment_id == shipment.id)
@@ -55,13 +57,24 @@ def on_shipment_created(env: EventEnvelope, session: Session) -> None:
             session.add(ShipmentAssignment(shipment_id=shipment.id, agent_id=cand.agent_id))
             add_outbox(session, shipment.id, EventType.AGENT_OFFERED,
                        {"agent_id": str(cand.agent_id)})
+            redis.zrem("agents:available", str(cand.agent_id))   # hide from other searches
             return
 
     add_outbox(session, shipment.id, EventType.NO_AGENT_AVAILABLE)
 
 
-HANDLERS = {EventType.SHIPMENT_CREATED: on_shipment_created}
+def on_offer_closed(env: EventEnvelope, session: Session) -> None:
+    shipment = session.get(Shipment, env.shipment_id)
+    if not shipment or shipment.status != DeliveryStatus.PICKUP_PENDING:
+        return                                   # moved on, nothing to re-offer
+    offer_to_next_agent(session, shipment)
 
+
+HANDLERS = {
+    EventType.SHIPMENT_CREATED: on_shipment_created,
+    EventType.OFFER_DECLINED: on_offer_closed,
+    EventType.OFFER_EXPIRED: on_offer_closed,
+}
 
 def main():
     run_consumer("dispatcher", "shipment-events", HANDLERS)
