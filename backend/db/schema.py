@@ -86,7 +86,6 @@ class OrderOut(BaseModel):
     order_name: str
     price: float
     quantity: int
-    delivery_status: DeliveryStatus
     has_cancelled: bool
     created_at: datetime
 

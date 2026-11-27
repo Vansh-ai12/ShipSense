@@ -174,7 +174,7 @@ def list_orders(
     if client_id:
         q = q.where(Order.client_id == client_id)
     if status:
-        q = q.where(Order.delivery_status == status)
+        q = q.join(Shipment, Shipment.order_id == Order.id).where(Shipment.status == status)
     return session.exec(q.order_by(Order.created_at.desc()).offset(offset).limit(limit)).all()
 
 

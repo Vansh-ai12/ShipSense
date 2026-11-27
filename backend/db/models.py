@@ -4,7 +4,6 @@ from enum import Enum
 from sqlalchemy import Column, Enum as SAEnum , DateTime
 from datetime import datetime,timezone
 from typing import Optional
-from db.schema import Location
 
 from sqlalchemy import Index, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
@@ -23,6 +22,8 @@ class DeliveryStatus(str, Enum):
     PICKUP_FAILED = "pickup_failed"
     PICKUP_PENDING = "pickup_pending"
     AGENT_ASSIGNED = "agent_assigned"
+    RETURNING = "returning"
+    ON_HOLD = "on_hold"
 
 
 class CarrierType(str, Enum):
@@ -129,6 +130,7 @@ class User(SQLModel, table = True):
 
 class Order(SQLModel, table = True):
     id:UUID = Field(default_factory = uuid4 , primary_key=True)
+    external_order_id: str = Field(index=True)
     order_name:str
     price: float
     quantity: int
